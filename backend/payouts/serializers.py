@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
-    // Mask account number except last 4 digits for security
+    #  Mask account number except last 4 digits for security
     masked_account_number = serializers.SerializerMethodField()
 
     class Meta:
@@ -18,7 +18,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
 
 
 class LedgerEntrySerializer(serializers.ModelSerializer):
-    // Return amount in paise and also rupees for display convenience
+    #  Return amount in paise and also rupees for display convenience
     amount_rupees = serializers.SerializerMethodField()
 
     class Meta:
@@ -29,8 +29,8 @@ class LedgerEntrySerializer(serializers.ModelSerializer):
         ]
 
     def get_amount_rupees(self, obj):
-        // Always divide by 100 to convert paise to rupees for display only
-        // Never store rupees - always store paise
+        #  Always divide by 100 to convert paise to rupees for display only
+        #  Never store rupees - always store paise
         return obj.amount_paise / 100
 
 
@@ -51,7 +51,7 @@ class PayoutSerializer(serializers.ModelSerializer):
 
 
 class CreatePayoutSerializer(serializers.Serializer):
-    amount_paise = serializers.IntegerField(min_value=100)  // minimum 1 rupee = 100 paise
+    amount_paise = serializers.IntegerField(min_value=100)  # minimum 1 rupee = 100 paise
     bank_account_id = serializers.UUIDField()
 
     def validate_amount_paise(self, value):
@@ -60,7 +60,7 @@ class CreatePayoutSerializer(serializers.Serializer):
         return value
 
     def validate_bank_account_id(self, value):
-        // Validate bank account exists - merchant scoping done in view
+        #  Validate bank account exists - merchant scoping done in view
         if not BankAccount.objects.filter(id=value).exists():
             raise serializers.ValidationError("Bank account not found.")
         return value

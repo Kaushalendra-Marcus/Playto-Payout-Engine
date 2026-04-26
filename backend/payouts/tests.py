@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def _create_test_merchant(name="Test Merchant", email=None):
-    // Helper to create a merchant with a bank account and initial credit
+    #  Helper to create a merchant with a bank account and initial credit
     if email is None:
         email = f"test_{uuid.uuid4().hex[:8]}@test.com"
     merchant = Merchant.objects.create(name=name, email=email)
@@ -25,18 +25,18 @@ def _create_test_merchant(name="Test Merchant", email=None):
 
 
 class ConcurrencyTest(TransactionTestCase):
-    // TransactionTestCase is required for testing concurrency
-    // because TestCase wraps everything in a single transaction
-    // which would make select_for_update behave differently
+    #  TransactionTestCase is required for testing concurrency
+    #  because TestCase wraps everything in a single transaction
+    #  which would make select_for_update behave differently
 
     def test_two_concurrent_payouts_only_one_succeeds(self):
-        // A merchant with 100 rupees (10000 paise) submits two simultaneous
-        // 60 rupee (6000 paise) payout requests.
-        // Exactly one must succeed and one must be rejected.
+        #  A merchant with 100 rupees (10000 paise) submits two simultaneous
+        #  60 rupee (6000 paise) payout requests.
+        #  Exactly one must succeed and one must be rejected.
 
         merchant, bank_account = _create_test_merchant(name="Concurrency Test Merchant")
 
-        // Fund the merchant with 10000 paise (100 rupees)
+        #  Fund the merchant with 10000 paise (100 rupees)
         LedgerEntry.objects.create(
             merchant=merchant,
             amount_paise=10000,
@@ -51,7 +51,7 @@ class ConcurrencyTest(TransactionTestCase):
         errors = []
 
         def attempt_payout(key_suffix):
-            // Each thread uses a unique idempotency key
+            #  Each thread uses a unique idempotency key
             try:
                 response_data, http_status, is_duplicate = create_payout(
                     merchant_id=merchant.id,
@@ -65,7 +65,7 @@ class ConcurrencyTest(TransactionTestCase):
                 errors.append(str(e))
                 logger.error("Thread %s got error: %s", key_suffix, str(e))
 
-        // Fire two threads simultaneously
+        #  Fire two threads simultaneously
         t1 = threading.Thread(target=attempt_payout, args=("A",))
         t2 = threading.Thread(target=attempt_payout, args=("B",))
 
@@ -85,24 +85,24 @@ class ConcurrencyTest(TransactionTestCase):
             success_count, rejection_count
         )
 
-        // Exactly one request must succeed and one must be rejected
+        #  Exactly one request must succeed and one must be rejected
         self.assertEqual(success_count, 1, "Exactly one payout should be created")
         self.assertEqual(rejection_count, 1, "Exactly one payout should be rejected")
 
-        // Verify the balance invariant still holds after concurrent requests
+        #  Verify the balance invariant still holds after concurrent requests
         merchant.refresh_from_db()
         pending_payouts = Payout.objects.filter(merchant=merchant, status=Payout.PENDING)
         self.assertEqual(pending_payouts.count(), 1, "Only one pending payout should exist")
 
         held = merchant.get_held_balance()
         spendable = merchant.get_available_balance() - held
-        // Spendable should be 10000 - 6000 = 4000 paise
+        #  Spendable should be 10000 - 6000 = 4000 paise
         self.assertEqual(spendable, 4000, "Spendable balance should be 4000 paise after one 6000 hold")
 
         logger.info("Concurrency test passed - balance integrity maintained")
 
     def test_overdraw_rejected_cleanly(self):
-        // Single request for more than available balance must be rejected
+        #  Single request for more than available balance must be rejected
         merchant, bank_account = _create_test_merchant(name="Overdraw Test Merchant")
         LedgerEntry.objects.create(
             merchant=merchant,
@@ -127,8 +127,8 @@ class ConcurrencyTest(TransactionTestCase):
 class IdempotencyTest(TransactionTestCase):
 
     def test_same_key_returns_same_response(self):
-        // Calling POST /payouts twice with the same idempotency key
-        // must return the exact same response - no duplicate payout created
+        #  Calling POST /payouts twice with the same idempotency key
+        #  must return the exact same response - no duplicate payout created
 
         merchant, bank_account = _create_test_merchant(name="Idempotency Test Merchant")
         LedgerEntry.objects.create(
@@ -140,7 +140,7 @@ class IdempotencyTest(TransactionTestCase):
 
         key = str(uuid.uuid4())
 
-        // First call
+        #  First call
         response1, status1, is_dup1 = create_payout(
             merchant_id=merchant.id,
             amount_paise=5000,
@@ -148,7 +148,7 @@ class IdempotencyTest(TransactionTestCase):
             idempotency_key_str=key,
         )
 
-        // Second call - same key
+        #  Second call - same key
         response2, status2, is_dup2 = create_payout(
             merchant_id=merchant.id,
             amount_paise=5000,
@@ -162,17 +162,17 @@ class IdempotencyTest(TransactionTestCase):
         self.assertEqual(status2, 201, "Second call should return same 201")
         self.assertTrue(is_dup2, "Second call should be marked as duplicate")
 
-        // Responses must be identical
+        #  Responses must be identical
         self.assertEqual(response1["id"], response2["id"], "Payout IDs must be identical")
 
-        // Only one payout should exist in the database
+        #  Only one payout should exist in the database
         payout_count = Payout.objects.filter(merchant=merchant).count()
         self.assertEqual(payout_count, 1, "Only one payout should exist in DB")
 
         logger.info("Idempotency test passed - no duplicate created")
 
     def test_different_keys_create_different_payouts(self):
-        // Two calls with different keys must create two separate payouts
+        #  Two calls with different keys must create two separate payouts
 
         merchant, bank_account = _create_test_merchant(name="Different Keys Test Merchant")
         LedgerEntry.objects.create(
@@ -200,8 +200,8 @@ class IdempotencyTest(TransactionTestCase):
         self.assertEqual(Payout.objects.filter(merchant=merchant).count(), 2)
 
     def test_key_scoped_per_merchant(self):
-        // Same idempotency key used by two different merchants must
-        // create two separate payouts - keys are scoped per merchant
+        #  Same idempotency key used by two different merchants must
+        #  create two separate payouts - keys are scoped per merchant
 
         m1, ba1 = _create_test_merchant(name="Merchant One")
         m2, ba2 = _create_test_merchant(name="Merchant Two")
@@ -238,7 +238,7 @@ class IdempotencyTest(TransactionTestCase):
 class StateMachineTest(TestCase):
 
     def test_illegal_transitions_rejected(self):
-        // Verify that the state machine rejects invalid transitions
+        #  Verify that the state machine rejects invalid transitions
         merchant, bank_account = _create_test_merchant()
 
         payout = Payout.objects.create(
@@ -248,15 +248,15 @@ class StateMachineTest(TestCase):
             status=Payout.COMPLETED,
         )
 
-        // completed -> pending is illegal
+        #  completed -> pending is illegal
         with self.assertRaises(ValueError):
             payout.transition_to(Payout.PENDING)
 
-        // completed -> processing is illegal
+        #  completed -> processing is illegal
         with self.assertRaises(ValueError):
             payout.transition_to(Payout.PROCESSING)
 
-        // completed -> failed is illegal
+        #  completed -> failed is illegal
         with self.assertRaises(ValueError):
             payout.transition_to(Payout.FAILED)
 
@@ -272,11 +272,11 @@ class StateMachineTest(TestCase):
             status=Payout.PENDING,
         )
 
-        // pending -> processing is legal
+        #  pending -> processing is legal
         payout.transition_to(Payout.PROCESSING)
         self.assertEqual(payout.status, Payout.PROCESSING)
 
-        // processing -> completed is legal
+        #  processing -> completed is legal
         payout.transition_to(Payout.COMPLETED)
         self.assertEqual(payout.status, Payout.COMPLETED)
 
@@ -286,8 +286,8 @@ class StateMachineTest(TestCase):
 class LedgerInvariantTest(TestCase):
 
     def test_balance_equals_credits_minus_debits(self):
-        // The displayed balance must always equal sum(credits) - sum(debits)
-        // This is the core money integrity invariant
+        #  The displayed balance must always equal sum(credits) - sum(debits)
+        #  This is the core money integrity invariant
 
         merchant, _ = _create_test_merchant()
 

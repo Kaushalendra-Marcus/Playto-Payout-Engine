@@ -1,5 +1,5 @@
-// Run with: python manage.py shell < seed.py
-// Or: python manage.py runscript seed (if django-extensions installed)
+#  Run with: python manage.py shell < seed.py
+#  Or: python manage.py runscript seed (if django-extensions installed)
 
 import os
 import django
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 print("Starting seed...")
 
-// Clear existing data
+#  Clear existing data
 LedgerEntry.objects.all().delete()
 BankAccount.objects.all().delete()
 Merchant.objects.all().delete()
 
 print("Cleared existing data")
 
-// Create Merchant 1 - a freelance designer
+#  Create Merchant 1 - a freelance designer
 m1 = Merchant.objects.create(
     name="Arjun Sharma - Design Studio",
     email="arjun@designstudio.in",
@@ -33,13 +33,13 @@ BankAccount.objects.create(
     account_holder_name="Arjun Sharma",
     is_primary=True,
 )
-// Seed credits: simulated customer payments from international clients
+#  Seed credits: simulated customer payments from international clients
 LedgerEntry.objects.create(merchant=m1, amount_paise=500000, entry_type="credit", description="Payment from client: Acme Corp (USD 600)")
 LedgerEntry.objects.create(merchant=m1, amount_paise=250000, entry_type="credit", description="Payment from client: Globex LLC (USD 300)")
 LedgerEntry.objects.create(merchant=m1, amount_paise=125000, entry_type="credit", description="Payment from client: Wayne Enterprises (USD 150)")
 print(f"Created merchant: {m1.name} | Balance: Rs {m1.get_available_balance() / 100:.2f}")
 
-// Create Merchant 2 - a digital marketing agency
+#  Create Merchant 2 - a digital marketing agency
 m2 = Merchant.objects.create(
     name="Priya Agencies Pvt Ltd",
     email="priya@priyaagencies.in",
@@ -61,11 +61,11 @@ BankAccount.objects.create(
 LedgerEntry.objects.create(merchant=m2, amount_paise=1000000, entry_type="credit", description="Payment from client: TechCorp Inc (USD 1200)")
 LedgerEntry.objects.create(merchant=m2, amount_paise=750000, entry_type="credit", description="Payment from client: StartupXYZ (USD 900)")
 LedgerEntry.objects.create(merchant=m2, amount_paise=200000, entry_type="credit", description="Payment from client: FinanceHub (USD 240)")
-// Merchant 2 has already received one successful payout
+#  Merchant 2 has already received one successful payout
 LedgerEntry.objects.create(merchant=m2, amount_paise=500000, entry_type="debit", description="Payout to bank account 7654")
 print(f"Created merchant: {m2.name} | Balance: Rs {m2.get_available_balance() / 100:.2f}")
 
-// Create Merchant 3 - a SaaS developer
+#  Create Merchant 3 - a SaaS developer
 m3 = Merchant.objects.create(
     name="Kiran Dev - SaaS Solutions",
     email="kiran@kirandev.io",

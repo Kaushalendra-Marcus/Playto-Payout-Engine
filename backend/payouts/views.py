@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class MerchantListView(APIView):
-    // Returns all merchants - used by frontend merchant selector
+    #  Returns all merchants - used by frontend merchant selector
     def get(self, request):
         merchants = Merchant.objects.all()
         data = []
@@ -31,7 +31,7 @@ class MerchantListView(APIView):
 
 
 class MerchantDashboardView(APIView):
-    // Returns full merchant dashboard data: balances + bank accounts
+    #  Returns full merchant dashboard data: balances + bank accounts
     def get(self, request, merchant_id):
         merchant = get_object_or_404(Merchant, id=merchant_id)
         serializer = MerchantDashboardSerializer(merchant)
@@ -40,7 +40,7 @@ class MerchantDashboardView(APIView):
 
 
 class LedgerView(APIView):
-    // Returns paginated ledger entries for a merchant
+    #  Returns paginated ledger entries for a merchant
     def get(self, request, merchant_id):
         merchant = get_object_or_404(Merchant, id=merchant_id)
         entries = LedgerEntry.objects.filter(merchant=merchant).order_by("-created_at")[:50]
@@ -53,8 +53,8 @@ class LedgerView(APIView):
 
 
 class PayoutListCreateView(APIView):
-    // GET - list payouts for a merchant
-    // POST - create a new payout with idempotency key
+    #  GET - list payouts for a merchant
+    #  POST - create a new payout with idempotency key
     def get(self, request, merchant_id):
         merchant = get_object_or_404(Merchant, id=merchant_id)
         payouts = Payout.objects.filter(merchant=merchant).order_by("-created_at")[:50]
@@ -66,7 +66,7 @@ class PayoutListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request, merchant_id):
-        // Validate idempotency key is present in header
+        #  Validate idempotency key is present in header
         idempotency_key = request.headers.get("Idempotency-Key")
         if not idempotency_key:
             logger.warning(
@@ -78,7 +78,7 @@ class PayoutListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        // Validate request body
+        #  Validate request body
         serializer = CreatePayoutSerializer(data=request.data)
         if not serializer.is_valid():
             logger.warning(
@@ -98,7 +98,7 @@ class PayoutListCreateView(APIView):
 
 
 class PayoutDetailView(APIView):
-    // Returns a single payout by ID - used for live status polling
+    #  Returns a single payout by ID - used for live status polling
     def get(self, request, merchant_id, payout_id):
         merchant = get_object_or_404(Merchant, id=merchant_id)
         payout = get_object_or_404(Payout, id=payout_id, merchant=merchant)
@@ -108,9 +108,9 @@ class PayoutDetailView(APIView):
 
 
 class BalanceInvariantCheckView(APIView):
-    // Debug endpoint - verifies the ledger invariant
-    // Sum of credits - sum of debits must equal the displayed balance
-    // This is what the graders check
+    #  Debug endpoint - verifies the ledger invariant
+    #  Sum of credits - sum of debits must equal the displayed balance
+    #  This is what the graders check
     def get(self, request, merchant_id):
         from django.db.models import Sum, Q
         merchant = get_object_or_404(Merchant, id=merchant_id)
