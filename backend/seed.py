@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 print("Starting seed...")
 
+if Merchant.objects.exists():
+    print("Seed already done - skipping")
+    import sys
+    sys.exit(0)
 
 IdempotencyKey.objects.all().delete()
 Payout.objects.all().delete()
