@@ -25,7 +25,8 @@ def process_payout(self, payout_id):
             if payout.status != Payout.PENDING:
                 logger.warning(
                     "Skipping payout - not in pending state - payout_id=%s status=%s",
-                    payout_id, payout.status,
+                    payout_id,
+                    payout.status,
                 )
                 return
 
@@ -35,7 +36,8 @@ def process_payout(self, payout_id):
             payout.save(update_fields=["status", "attempt_count", "last_attempted_at"])
             logger.info(
                 "Payout moved to processing - payout_id=%s attempt=%s",
-                payout_id, payout.attempt_count,
+                payout_id,
+                payout.attempt_count,
             )
     except Payout.DoesNotExist:
         logger.error("Payout not found - payout_id=%s", payout_id)
@@ -75,7 +77,8 @@ def _complete_payout(payout):
         if payout.status != Payout.PROCESSING:
             logger.warning(
                 "Payout no longer in processing - skipping completion - payout_id=%s status=%s",
-                payout.id, payout.status,
+                payout.id,
+                payout.status,
             )
             return
         try:
@@ -91,7 +94,9 @@ def _complete_payout(payout):
             )
             logger.info(
                 "Payout completed successfully - payout_id=%s amount_paise=%s merchant_id=%s",
-                payout.id, payout.amount_paise, payout.merchant_id,
+                payout.id,
+                payout.amount_paise,
+                payout.merchant_id,
             )
         except ValueError as e:
             logger.error(
@@ -109,7 +114,8 @@ def _fail_payout(payout, reason="Payout failed"):
         if payout.status != Payout.PROCESSING:
             logger.warning(
                 "Payout no longer in processing - skipping failure - payout_id=%s status=%s",
-                payout.id, payout.status,
+                payout.id,
+                payout.status,
             )
             return
         try:
@@ -117,7 +123,9 @@ def _fail_payout(payout, reason="Payout failed"):
             payout.save(update_fields=["status", "failure_reason", "updated_at"])
             logger.info(
                 "Payout failed and funds returned - payout_id=%s amount_paise=%s reason=%s",
-                payout.id, payout.amount_paise, reason,
+                payout.id,
+                payout.amount_paise,
+                reason,
             )
         except ValueError as e:
             logger.error(
@@ -149,14 +157,29 @@ def retry_stuck_payouts():
             # Max attempts reached - move to failed and return funds
             logger.warning(
                 "Payout exceeded max retries - moving to failed - payout_id=%s attempts=%s",
-                payout.id, payout.attempt_count,
+                payout.id,
+                payout.attempt_count,
             )
-            _fail_payout(payout, reason=f"Exceeded max retry attempts ({max_attempts})")
+            with transaction.atomic():
+                payout.refresh_from_db()
+                if payout.status in [Payout.PROCESSING, Payout.PENDING]:
+                    payout.status = Payout.FAILED
+                    payout.failure_reason = (
+                        f"Exceeded max retry attempts ({max_attempts})"
+                    )
+                    payout.save(
+                        update_fields=["status", "failure_reason", "updated_at"]
+                    )
+                    logger.info(
+                        "Payout force-failed after max retries - payout_id=%s",
+                        payout.id,
+                    )
         else:
             # Reset to pending and requeue for another attempt
             logger.info(
                 "Retrying stuck payout - payout_id=%s attempt=%s",
-                payout.id, payout.attempt_count,
+                payout.id,
+                payout.attempt_count,
             )
             with transaction.atomic():
                 payout.refresh_from_db()
