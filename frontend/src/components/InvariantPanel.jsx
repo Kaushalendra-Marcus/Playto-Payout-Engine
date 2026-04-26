@@ -25,7 +25,7 @@ export function InvariantPanel({ merchantId }) {
 
   return (
     <div className="card p-5">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
         <h2 className="text-sm font-medium text-text-secondary uppercase tracking-widest">
           Ledger Invariant Check
         </h2>

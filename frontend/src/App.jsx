@@ -20,7 +20,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface-0 flex flex-col">
       {/* Top nav */}
-      <header className="border-b border-border bg-surface-1 px-6 py-4 flex items-center gap-4">
+      <header className="border-b border-border bg-surface-1 px-4 sm:px-6 py-4 flex flex-wrap items-center gap-2 sm:gap-4">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-accent-green flex items-center justify-center">
             <span className="text-surface-0 text-xs font-bold">P</span>
@@ -29,7 +29,7 @@ export default function App() {
             Playto Pay
           </span>
         </div>
-        <span className="text-border">|</span>
+        <span className="hidden sm:inline text-border">|</span>
         <span className="text-text-muted text-xs">Payout Engine</span>
 
         {/* Live indicator */}
@@ -39,9 +39,9 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border bg-surface-1 p-4 overflow-y-auto">
+        <aside className="w-full lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-surface-1 p-4 overflow-y-auto">
           <p className="text-xs font-medium text-text-muted uppercase tracking-widest mb-3 px-2">
             Merchants
           </p>
@@ -58,7 +58,7 @@ export default function App() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {!selectedMerchantId ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-text-muted text-sm">

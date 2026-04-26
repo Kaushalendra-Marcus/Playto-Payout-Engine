@@ -34,7 +34,7 @@ export function DashboardPage({ merchantId, merchantName }) {
   }, [refetchDashboard, refetchLedger, refetchPayouts]);
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in min-w-0">
       {/* Merchant header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-text-primary">
@@ -49,7 +49,7 @@ export function DashboardPage({ merchantId, merchantName }) {
       <BalanceCards dashboard={dashboard} loading={dashLoading} />
 
       {/* Main content: form + invariant check on left, tables on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left column - actions */}
         <div className="space-y-4">
           <PayoutForm
@@ -61,7 +61,7 @@ export function DashboardPage({ merchantId, merchantName }) {
         </div>
 
         {/* Right column - data tables */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6 min-w-0">
           <PayoutsTable payouts={payouts} loading={payoutsLoading} />
           <LedgerTable entries={ledger} loading={ledgerLoading} />
         </div>

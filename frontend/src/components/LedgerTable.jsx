@@ -25,23 +25,25 @@ export function LedgerTable({ entries, loading }) {
             Ledger
           </h2>
         </div>
-        <table className="w-full">
-          <thead>
-            <LedgerTableHead />
-          </thead>
-          <tbody>
-            {[0, 1, 2, 4].map((i) => (
-              <TableRowSkeleton key={i} cols={4} />
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px]">
+            <thead>
+              <LedgerTableHead />
+            </thead>
+            <tbody>
+              {[0, 1, 2, 4].map((i) => (
+                <TableRowSkeleton key={i} cols={4} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+      <div className="px-4 sm:px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-medium text-text-secondary uppercase tracking-widest">
           Ledger
         </h2>
@@ -56,7 +58,7 @@ export function LedgerTable({ entries, loading }) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[560px]">
             <thead>
               <LedgerTableHead />
             </thead>
