@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #0a0a0a;
+    color: #f0f0f0;
+    font-family: "IBM Plex Sans", sans-serif;
+    margin: 0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111111;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2e2e2e;
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+  }
+}
+
+@layer utilities {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #1a1a1a 25%,
+      #222222 50%,
+      #1a1a1a 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: 4px;
+  }
+
+  .card {
+    background-color: #111111;
+    border: 1px solid #2e2e2e;
+    border-radius: 8px;
+  }
+
+  .tag-pending {
+    background-color: rgba(245, 166, 35, 0.1);
+    color: #f5a623;
+    border: 1px solid rgba(245, 166, 35, 0.25);
+  }
+
+  .tag-processing {
+    background-color: rgba(59, 158, 255, 0.1);
+    color: #3b9eff;
+    border: 1px solid rgba(59, 158, 255, 0.25);
+  }
+
+  .tag-completed {
+    background-color: rgba(0, 200, 150, 0.1);
+    color: #00c896;
+    border: 1px solid rgba(0, 200, 150, 0.25);
+  }
+
+  .tag-failed {
+    background-color: rgba(255, 77, 77, 0.1);
+    color: #ff4d4d;
+    border: 1px solid rgba(255, 77, 77, 0.25);
+  }
+}
