@@ -12,21 +12,27 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True, max_retries=0)
 def process_payout(self, payout_id):
     # Main payout processor - simulates bank settlement
-    # Outcome distribution: 70% success, 20% failure, 10% hang in processing
-    from .models import Payout, LedgerEntry
+    # Outcome: 70% success, 20% failure, 10% hang in processing
+    from .models import Payout
 
     logger.info("Processing payout - payout_id=%s", payout_id)
 
-    # Lock the row and transition to PROCESSING inside a single atomic block
+    # Lock row, check status, transition to PROCESSING - all in one atomic block
     try:
         with transaction.atomic():
-            payout = Payout.objects.select_for_update(nowait=True).get(id=payout_id)
+            # select_related preloads merchant and bank_account in the same query
+            # This avoids lazy loading issues inside later transactions
+            payout = (
+                Payout.objects
+                .select_related("merchant", "bank_account")
+                .select_for_update(nowait=True)
+                .get(id=payout_id)
+            )
 
             if payout.status != Payout.PENDING:
                 logger.warning(
                     "Skipping payout - not in pending state - payout_id=%s status=%s",
-                    payout_id,
-                    payout.status,
+                    payout_id, payout.status,
                 )
                 return
 
@@ -36,15 +42,15 @@ def process_payout(self, payout_id):
             payout.save(update_fields=["status", "attempt_count", "last_attempted_at"])
             logger.info(
                 "Payout moved to processing - payout_id=%s attempt=%s",
-                payout_id,
-                payout.attempt_count,
+                payout_id, payout.attempt_count,
             )
     except Payout.DoesNotExist:
         logger.error("Payout not found - payout_id=%s", payout_id)
         return
     except Exception as e:
         logger.warning(
-            "Could not lock payout row - payout_id=%s error=%s", payout_id, str(e)
+            "Could not acquire lock or transition payout - payout_id=%s error=%s",
+            payout_id, str(e), exc_info=True,
         )
         return
 
@@ -54,13 +60,17 @@ def process_payout(self, payout_id):
     # Simulate bank settlement outcome
     # 70% success, 20% failure, 10% stays in processing (simulates timeout/hang)
     outcome_roll = random.random()
+    logger.info(
+        "Payout outcome roll - payout_id=%s roll=%.3f",
+        payout_id, outcome_roll,
+    )
 
     if outcome_roll < 0.70:
         _complete_payout(payout)
     elif outcome_roll < 0.90:
         _fail_payout(payout, reason="Bank rejected the payout request")
     else:
-        # Intentionally leave in PROCESSING - beat task will retry after 30s
+        # Intentionally leave in PROCESSING - beat task retries after 30s
         logger.warning(
             "Payout left hanging in processing - payout_id=%s (will be retried by beat)",
             payout_id,
@@ -69,73 +79,92 @@ def process_payout(self, payout_id):
 
 def _complete_payout(payout):
     # Atomically transition to completed and create the debit ledger entry
-    # The debit confirms funds have left the merchant account
-    from .models import LedgerEntry
+    # Debit confirms funds have left the merchant account
+    from .models import LedgerEntry, Payout
 
-    with transaction.atomic():
-        payout.refresh_from_db()
-        if payout.status != Payout.PROCESSING:
-            logger.warning(
-                "Payout no longer in processing - skipping completion - payout_id=%s status=%s",
-                payout.id,
-                payout.status,
+    logger.info("Attempting to complete payout - payout_id=%s", payout.id)
+
+    try:
+        with transaction.atomic():
+            # Re-fetch with select_related so merchant and bank_account are loaded
+            fresh = (
+                Payout.objects
+                .select_related("merchant", "bank_account")
+                .select_for_update()
+                .get(id=payout.id)
             )
-            return
-        try:
-            payout.transition_to(Payout.COMPLETED)
-            payout.save(update_fields=["status", "updated_at"])
+
+            if fresh.status != Payout.PROCESSING:
+                logger.warning(
+                    "Payout not in processing during completion - payout_id=%s status=%s",
+                    fresh.id, fresh.status,
+                )
+                return
+
+            fresh.transition_to(Payout.COMPLETED)
+            fresh.save(update_fields=["status", "updated_at"])
 
             LedgerEntry.objects.create(
-                merchant=payout.merchant,
-                amount_paise=payout.amount_paise,
+                merchant=fresh.merchant,
+                amount_paise=fresh.amount_paise,
                 entry_type=LedgerEntry.DEBIT,
-                description=f"Payout to bank account {payout.bank_account.account_number[-4:]}",
-                payout=payout,
+                description=f"Payout to bank account {fresh.bank_account.account_number[-4:]}",
+                payout=fresh,
             )
             logger.info(
-                "Payout completed successfully - payout_id=%s amount_paise=%s merchant_id=%s",
-                payout.id,
-                payout.amount_paise,
-                payout.merchant_id,
+                "Payout completed - payout_id=%s amount_paise=%s merchant=%s",
+                fresh.id, fresh.amount_paise, fresh.merchant.name,
             )
-        except ValueError as e:
-            logger.error(
-                "Could not complete payout - payout_id=%s error=%s", payout.id, str(e)
-            )
+    except Exception as e:
+        logger.error(
+            "Error completing payout - payout_id=%s error=%s",
+            payout.id, str(e), exc_info=True,
+        )
 
 
 def _fail_payout(payout, reason="Payout failed"):
     # Atomically transition to failed
-    # No debit entry created - original credit remains, held balance released automatically
-    from .models import LedgerEntry
+    # No debit entry - original credit stays, held balance released automatically
+    from .models import Payout
 
-    with transaction.atomic():
-        payout.refresh_from_db()
-        if payout.status != Payout.PROCESSING:
-            logger.warning(
-                "Payout no longer in processing - skipping failure - payout_id=%s status=%s",
-                payout.id,
-                payout.status,
+    logger.info("Attempting to fail payout - payout_id=%s reason=%s", payout.id, reason)
+
+    try:
+        with transaction.atomic():
+            fresh = (
+                Payout.objects
+                .select_related("merchant", "bank_account")
+                .select_for_update()
+                .get(id=payout.id)
             )
-            return
-        try:
-            payout.transition_to(Payout.FAILED, failure_reason=reason)
-            payout.save(update_fields=["status", "failure_reason", "updated_at"])
+
+            if fresh.status not in [Payout.PROCESSING, Payout.PENDING]:
+                logger.warning(
+                    "Payout not in valid state for failure - payout_id=%s status=%s",
+                    fresh.id, fresh.status,
+                )
+                return
+
+            # Force status to PROCESSING so transition_to(FAILED) works
+            if fresh.status == Payout.PENDING:
+                fresh.status = Payout.PROCESSING
+
+            fresh.transition_to(Payout.FAILED, failure_reason=reason)
+            fresh.save(update_fields=["status", "failure_reason", "updated_at"])
             logger.info(
-                "Payout failed and funds returned - payout_id=%s amount_paise=%s reason=%s",
-                payout.id,
-                payout.amount_paise,
-                reason,
+                "Payout failed - payout_id=%s amount_paise=%s reason=%s",
+                fresh.id, fresh.amount_paise, reason,
             )
-        except ValueError as e:
-            logger.error(
-                "Could not fail payout - payout_id=%s error=%s", payout.id, str(e)
-            )
+    except Exception as e:
+        logger.error(
+            "Error failing payout - payout_id=%s error=%s",
+            payout.id, str(e), exc_info=True,
+        )
 
 
 @shared_task
 def retry_stuck_payouts():
-    # Picks up payouts stuck in PROCESSING longer than the threshold
+    # Picks up payouts stuck in PROCESSING longer than threshold
     # Handles the 10% hang simulation and real-world timeouts
     from .models import Payout
 
@@ -154,36 +183,37 @@ def retry_stuck_payouts():
 
     for payout in stuck_payouts:
         if payout.attempt_count >= max_attempts:
-            # Max attempts reached - move to failed and return funds
             logger.warning(
-                "Payout exceeded max retries - moving to failed - payout_id=%s attempts=%s",
-                payout.id,
-                payout.attempt_count,
+                "Payout exceeded max retries - force failing - payout_id=%s attempts=%s",
+                payout.id, payout.attempt_count,
             )
-            with transaction.atomic():
-                payout.refresh_from_db()
-                if payout.status in [Payout.PROCESSING, Payout.PENDING]:
-                    payout.status = Payout.FAILED
-                    payout.failure_reason = (
-                        f"Exceeded max retry attempts ({max_attempts})"
-                    )
-                    payout.save(
-                        update_fields=["status", "failure_reason", "updated_at"]
-                    )
-                    logger.info(
-                        "Payout force-failed after max retries - payout_id=%s",
-                        payout.id,
-                    )
+            try:
+                with transaction.atomic():
+                    fresh = Payout.objects.select_for_update().get(id=payout.id)
+                    if fresh.status in [Payout.PROCESSING, Payout.PENDING]:
+                        fresh.status = Payout.FAILED
+                        fresh.failure_reason = f"Exceeded max retry attempts ({max_attempts})"
+                        fresh.save(update_fields=["status", "failure_reason", "updated_at"])
+                        logger.info("Payout force-failed - payout_id=%s", fresh.id)
+            except Exception as e:
+                logger.error(
+                    "Error force-failing payout - payout_id=%s error=%s",
+                    payout.id, str(e), exc_info=True,
+                )
         else:
-            # Reset to pending and requeue for another attempt
             logger.info(
                 "Retrying stuck payout - payout_id=%s attempt=%s",
-                payout.id,
-                payout.attempt_count,
+                payout.id, payout.attempt_count,
             )
-            with transaction.atomic():
-                payout.refresh_from_db()
-                if payout.status == Payout.PROCESSING:
-                    payout.status = Payout.PENDING
-                    payout.save(update_fields=["status", "updated_at"])
-                    process_payout.delay(str(payout.id))
+            try:
+                with transaction.atomic():
+                    fresh = Payout.objects.select_for_update().get(id=payout.id)
+                    if fresh.status == Payout.PROCESSING:
+                        fresh.status = Payout.PENDING
+                        fresh.save(update_fields=["status", "updated_at"])
+                        process_payout.delay(str(fresh.id))
+            except Exception as e:
+                logger.error(
+                    "Error retrying stuck payout - payout_id=%s error=%s",
+                    payout.id, str(e), exc_info=True,
+                )

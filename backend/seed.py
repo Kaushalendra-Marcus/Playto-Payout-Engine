@@ -8,13 +8,15 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
 import logging
-from payouts.models import Merchant, BankAccount, LedgerEntry
+from payouts.models import Merchant, BankAccount, LedgerEntry, Payout, IdempotencyKey
 
 logger = logging.getLogger(__name__)
 
 print("Starting seed...")
 
-#  Clear existing data
+
+IdempotencyKey.objects.all().delete()
+Payout.objects.all().delete()
 LedgerEntry.objects.all().delete()
 BankAccount.objects.all().delete()
 Merchant.objects.all().delete()
