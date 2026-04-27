@@ -35,7 +35,6 @@ export default function App() {
         {/* Live indicator */}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse-dot" />
-          <span className="text-xs text-text-muted">Live</span>
         </div>
       </header>
 

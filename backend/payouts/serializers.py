@@ -18,7 +18,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
 
 
 class LedgerEntrySerializer(serializers.ModelSerializer):
-    #  Return amount in paise and also rupees for display convenience
+    #  Returning amount in paise and also rupees for display convenience
     amount_rupees = serializers.SerializerMethodField()
 
     class Meta:
@@ -29,8 +29,7 @@ class LedgerEntrySerializer(serializers.ModelSerializer):
         ]
 
     def get_amount_rupees(self, obj):
-        #  Always divide by 100 to convert paise to rupees for display only
-        #  Never store rupees - always store paise
+        # divide by 100 to convert paise to rupees for display only
         return obj.amount_paise / 100
 
 

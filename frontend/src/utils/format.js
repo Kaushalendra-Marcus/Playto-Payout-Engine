@@ -1,5 +1,4 @@
-// Format paise to a human-readable rupee string
-// Always takes paise as input, never rupees
+// Always takeing paise as input, never rupees
 export function formatPaise(paise) {
   if (paise == null) return "Rs 0.00";
   const rupees = paise / 100;
@@ -11,7 +10,7 @@ export function formatPaise(paise) {
   }).format(rupees);
 }
 
-// Format ISO date string to a readable local time
+//Format ISO date string to a readable local time
 export function formatDate(isoString) {
   if (!isoString) return "-";
   return new Date(isoString).toLocaleString("en-IN", {

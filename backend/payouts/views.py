@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class MerchantListView(APIView):
-    #  Returns all merchants - used by frontend merchant selector
+    #  Returning all merchants- used by frontend merchant selector
     def get(self, request):
         merchants = Merchant.objects.all()
         data = []
@@ -108,9 +108,6 @@ class PayoutDetailView(APIView):
 
 
 class BalanceInvariantCheckView(APIView):
-    #  Debug endpoint - verifies the ledger invariant
-    #  Sum of credits - sum of debits must equal the displayed balance
-    #  This is what the graders check
     def get(self, request, merchant_id):
         from django.db.models import Sum, Q
         merchant = get_object_or_404(Merchant, id=merchant_id)

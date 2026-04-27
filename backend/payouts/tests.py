@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def _create_test_merchant(name="Test Merchant", email=None):
-    #  Helper to create a merchant with a bank account and initial credit
     if email is None:
         email = f"test_{uuid.uuid4().hex[:8]}@test.com"
     merchant = Merchant.objects.create(name=name, email=email)
@@ -25,14 +24,8 @@ def _create_test_merchant(name="Test Merchant", email=None):
 
 
 class ConcurrencyTest(TransactionTestCase):
-    #  TransactionTestCase is required for testing concurrency
-    #  because TestCase wraps everything in a single transaction
-    #  which would make select_for_update behave differently
 
     def test_two_concurrent_payouts_only_one_succeeds(self):
-        #  A merchant with 100 rupees (10000 paise) submits two simultaneous
-        #  60 rupee (6000 paise) payout requests.
-        #  Exactly one must succeed and one must be rejected.
 
         merchant, bank_account = _create_test_merchant(name="Concurrency Test Merchant")
 
@@ -286,8 +279,6 @@ class StateMachineTest(TestCase):
 class LedgerInvariantTest(TestCase):
 
     def test_balance_equals_credits_minus_debits(self):
-        #  The displayed balance must always equal sum(credits) - sum(debits)
-        #  This is the core money integrity invariant
 
         merchant, _ = _create_test_merchant()
 

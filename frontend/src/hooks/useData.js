@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../api/client";
 
-// Generic polling hook - re-fetches every `intervalMs` milliseconds
+// Generic polling hook - re-fetches every `intervalMs` in  milliseconds
 export function usePolling(fetchFn, intervalMs = 4000, deps = []) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,7 @@ export function usePolling(fetchFn, intervalMs = 4000, deps = []) {
     } finally {
       setLoading(false);
     }
-  }, deps); // eslint-disable-line
+  }, deps);
 
   useEffect(() => {
     setLoading(true);
@@ -55,7 +55,7 @@ export function useLedger(merchantId) {
   );
 }
 
-// Payouts list with polling - allows live status updates
+// Payouts list with polling- allows live status updates
 export function usePayouts(merchantId) {
   return usePolling(
     () => api.getPayouts(merchantId),

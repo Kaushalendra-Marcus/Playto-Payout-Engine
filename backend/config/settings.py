@@ -87,7 +87,6 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Redis and Celery configuration
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 CELERY_BROKER_URL = REDIS_URL
@@ -97,7 +96,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
-# Beat schedule - check for stuck payouts every 30 seconds
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "retry-stuck-payouts": {
@@ -111,7 +109,6 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
 }
 
-# CORS - allow React dev server and production frontend
 CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:5173"

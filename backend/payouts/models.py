@@ -17,8 +17,8 @@ class Merchant(models.Model):
         return f"{self.name} ({self.email})"
 
     def get_available_balance(self):
-        #  Available balance = total credits - total debits via database aggregation
-        #  Never compute this in Python on fetched rows
+        #Available balance = total credits - total debits via database aggregation
+        #Computed using database-level aggregation (SUM + CASE), not Python iteration
         from django.db.models import Sum, Q
         result = LedgerEntry.objects.filter(merchant=self).aggregate(
             total=Sum(
@@ -32,7 +32,7 @@ class Merchant(models.Model):
         return result["total"] or 0
 
     def get_held_balance(self):
-        #  Held balance = sum of all pending payouts (funds reserved but not yet processed)
+        #Held balance =sum of all pending payouts
         from django.db.models import Sum
         result = Payout.objects.filter(
             merchant=self,
@@ -71,16 +71,14 @@ class LedgerEntry(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     merchant = models.ForeignKey(Merchant, on_delete=models.PROTECT, related_name="ledger_entries")
 
-    #  Amount always stored as positive integer in paise (1 INR = 100 paise)
-    #  The entry_type field determines whether it adds or subtracts from balance
+    # Amount always stored as positive integer in paise (1 INR = 100 paise)
+    # The entry_type field determines whether it adds or subtracts from balance
     amount_paise = models.BigIntegerField()
 
     entry_type = models.CharField(max_length=10, choices=ENTRY_TYPE_CHOICES)
 
-    #  Human-readable description for dashboard display
     description = models.CharField(max_length=500)
 
-    #  Reference to the payout that caused this entry, if applicable
     payout = models.ForeignKey(
         "Payout",
         on_delete=models.PROTECT,
@@ -91,9 +89,7 @@ class LedgerEntry(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
-    #  Ledger entries are immutable - never update or delete them
-    #  To reverse a transaction, create a new entry with opposite type
-
+    #Ledger entries are immutable - never update or delete them
     def __str__(self):
         direction = "+" if self.entry_type == self.CREDIT else "-"
         return f"{direction}{self.amount_paise} paise for {self.merchant.name}"
@@ -121,7 +117,6 @@ class Payout(models.Model):
         (FAILED, "Failed"),
     ]
 
-    #  Legal forward transitions only
     VALID_TRANSITIONS = {
         PENDING: [PROCESSING],
         PROCESSING: [COMPLETED, FAILED],
@@ -138,23 +133,19 @@ class Payout(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
 
-    #  Retry tracking
     attempt_count = models.IntegerField(default=0)
     last_attempted_at = models.DateTimeField(null=True, blank=True)
 
-    #  Failure reason for debugging and display
     failure_reason = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def can_transition_to(self, new_status):
-        #  Check if transition is allowed by the state machine
         allowed = self.VALID_TRANSITIONS.get(self.status, [])
         return new_status in allowed
 
     def transition_to(self, new_status, failure_reason=None):
-        #  Enforce state machine - reject illegal transitions
         if not self.can_transition_to(new_status):
             logger.error(
                 "Illegal payout state transition attempted - payout_id=%s current=%s target=%s",
@@ -184,17 +175,15 @@ class Payout(models.Model):
 
 
 class IdempotencyKey(models.Model):
-    #  Idempotency keys are scoped per merchant
-    #  Same key from two different merchants are treated as different requests
+    # Idempotency keys are scoped per merchant
+    # If Same key from two different merchants they are treated as different requests
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     merchant = models.ForeignKey(Merchant, on_delete=models.CASCADE, related_name="idempotency_keys")
     key = models.CharField(max_length=255)
 
-    #  Cached response - stored on first completion so second call returns identical response
     response_status_code = models.IntegerField(null=True, blank=True)
     response_body = models.JSONField(null=True, blank=True)
 
-    #  Track the payout this key created
     payout = models.OneToOneField(
         Payout,
         on_delete=models.SET_NULL,
@@ -216,7 +205,7 @@ class IdempotencyKey(models.Model):
         return f"IdempotencyKey {self.key} for {self.merchant.name}"
 
     class Meta:
-        #  Composite unique constraint - key scoped to merchant
+        #  Composite unique constraint, key scoped to merchant
         unique_together = [("merchant", "key")]
         indexes = [
             models.Index(fields=["merchant", "key"]),

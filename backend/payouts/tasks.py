@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=0)
 def process_payout(self, payout_id):
-    # Main payout processor - simulates bank settlement
-    # Outcome: 70% success, 20% failure, 10% hang in processing
+    # Main payout processor -simulates bank settlement
     from .models import Payout
 
     logger.info("Processing payout - payout_id=%s", payout_id)
@@ -21,7 +20,7 @@ def process_payout(self, payout_id):
     try:
         with transaction.atomic():
             # select_related preloads merchant and bank_account in the same query
-            # This avoids lazy loading issues inside later transactions
+            # avoiding lazy loading issues inside later transactions
             payout = (
                 Payout.objects
                 .select_related("merchant", "bank_account")
@@ -54,11 +53,8 @@ def process_payout(self, payout_id):
         )
         return
 
-    # Simulate bank API call delay (0.5s to 2s)
     time.sleep(random.uniform(0.5, 2.0))
 
-    # Simulate bank settlement outcome
-    # 70% success, 20% failure, 10% stays in processing (simulates timeout/hang)
     outcome_roll = random.random()
     logger.info(
         "Payout outcome roll - payout_id=%s roll=%.3f",
@@ -70,7 +66,6 @@ def process_payout(self, payout_id):
     elif outcome_roll < 0.90:
         _fail_payout(payout, reason="Bank rejected the payout request")
     else:
-        # Intentionally leave in PROCESSING - beat task retries after 30s
         logger.warning(
             "Payout left hanging in processing - payout_id=%s (will be retried by beat)",
             payout_id,
@@ -78,15 +73,12 @@ def process_payout(self, payout_id):
 
 
 def _complete_payout(payout):
-    # Atomically transition to completed and create the debit ledger entry
-    # Debit confirms funds have left the merchant account
     from .models import LedgerEntry, Payout
 
     logger.info("Attempting to complete payout - payout_id=%s", payout.id)
 
     try:
         with transaction.atomic():
-            # Re-fetch with select_related so merchant and bank_account are loaded
             fresh = (
                 Payout.objects
                 .select_related("merchant", "bank_account")
@@ -124,7 +116,6 @@ def _complete_payout(payout):
 
 def _fail_payout(payout, reason="Payout failed"):
     # Atomically transition to failed
-    # No debit entry - original credit stays, held balance released automatically
     from .models import Payout
 
     logger.info("Attempting to fail payout - payout_id=%s reason=%s", payout.id, reason)
@@ -145,7 +136,6 @@ def _fail_payout(payout, reason="Payout failed"):
                 )
                 return
 
-            # Force status to PROCESSING so transition_to(FAILED) works
             if fresh.status == Payout.PENDING:
                 fresh.status = Payout.PROCESSING
 

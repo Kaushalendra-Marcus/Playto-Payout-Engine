@@ -8,10 +8,8 @@ export function PayoutForm({ merchantId, dashboard, onSuccess }) {
   const [bankAccountId, setBankAccountId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // A new idempotency key is generated per form session
-  // Regenerated after each successful submission so re-submits are safe
   const [idempotencyKey, setIdempotencyKey] = useState(() => generateUUID());
 
-  // Pre-select primary bank account when dashboard loads
   useEffect(() => {
     if (dashboard?.bank_accounts?.length > 0) {
       const primary = dashboard.bank_accounts.find((b) => b.is_primary);
