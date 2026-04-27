@@ -179,3 +179,21 @@ with transaction.atomic():
 ```
 
 `select_for_update(nowait=True)` gives an exclusive row lock. The whole block is atomic. Spendable correctly deducts held funds. If two requests race, the second gets a `DatabaseError` (lock not available) which is caught and returned as 409.
+
+
+**Second bug caught - tasks.py:**
+
+AI generated select_for_update outside of transaction.atomic():
+
+    payout = Payout.objects.select_for_update(nowait=True).get(id=payout_id)
+
+This crashed with: "select_for_update cannot be used outside of a transaction"
+
+What I replaced it with:
+
+    with transaction.atomic():
+        payout = Payout.objects.select_for_update(nowait=True).get(id=payout_id)
+        # rest of logic inside same atomic block
+
+select_for_update requires an active transaction to acquire and hold the row lock.
+Without transaction.atomic(), PostgreSQL has no transaction to attach the lock to.
